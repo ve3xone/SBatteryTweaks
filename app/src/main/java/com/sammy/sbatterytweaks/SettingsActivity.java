@@ -213,7 +213,7 @@ public class SettingsActivity extends AppCompatActivity {
 
                 if (key.equals(KEY_PREF_TIMER_SWITCH) &&
                         !sharedPreferences.getBoolean(KEY_PREF_TIMER_SWITCH, false))
-                    BatteryWorker.isOngoing = false;
+                    BatteryWorker.cancelCooldown();
 
                 if (key.equals(PREF_IDLE_LEVEL) || key.equals(PREF_IDLE_SWITCH)) {
                     BatteryService.setBypassMode(BatteryService.BypassMode.AUTO);

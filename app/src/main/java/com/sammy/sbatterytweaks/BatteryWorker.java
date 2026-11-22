@@ -4,9 +4,9 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.os.CountDownTimer;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.widget.Toast;
 
@@ -21,13 +21,13 @@ import java.util.Date;
 public class BatteryWorker {
     private static final String afcDisableFile = "/sys/class/sec/switch/afc_disable";
     public static String chargingState, battTemp, fastChargeStatus;
-    public static boolean isOngoing, idleEnabled, disableSync,
+    public static boolean idleEnabled, disableSync,
             autoReset, bypassSupported, pausePdSupported, pausePdEnabled, pauseMode;
     public static float thresholdTemp, tempDelta;
     public static int battFullCap = 0, idleLevel;
     static SimpleDateFormat sdf;
     static Date currTime, start;
-    private static boolean serviceEnabled, timerEnabled, shouldCoolDown,
+    private static boolean serviceEnabled, timerEnabled,
             slowThresholdSwitch, fastThresholdSwitch, enableToast, isSchedEnabled;
     private static float cdSeconds;
     private static int fastChargeEnabled;
@@ -35,7 +35,7 @@ public class BatteryWorker {
     private static int startMinute;
     private static int slowThreshold, fastThreshold;
     private static int duration;
-    private static long cooldown;
+    private static final CooldownCycle cooldown = new CooldownCycle();
 
     public static void fetchUpdates(Context context) {
         String fastChargeSetting;
@@ -168,19 +168,8 @@ public class BatteryWorker {
         return (currentTimeMillis > startMillis) && (currentTimeMillis < endMillis);
     }
 
-    private static void startTimer() {
-        cooldown = (long) cdSeconds * 1000 * 2;
-        new CountDownTimer(cooldown, 1000) {
-            public void onTick(long millisUntilFinished) {
-                isOngoing = true;
-
-                shouldCoolDown = millisUntilFinished > (cooldown / 2);
-            }
-
-            public void onFinish() {
-                isOngoing = false;
-            }
-        }.start();
+    static void cancelCooldown() {
+        cooldown.cancel();
     }
 
     private static void enableFastCharge(Context context, int enabled) {
@@ -211,10 +200,10 @@ public class BatteryWorker {
                 (isSchedEnabled && isLazyTime());
     }
 
-    private static boolean shouldStartFastCharge() {
+    private static boolean shouldStartFastCharge(long now) {
         return (fastThresholdSwitch && BatteryReceiver.mLevel <= fastThreshold) ||
                 BatteryReceiver.mTemp <= (thresholdTemp - tempDelta) ||
-                (isOngoing && !shouldCoolDown);
+                (timerEnabled && cooldown.isRecoveryWindow(now));
     }
 
     private static void stopFastCharge(Context context) {
@@ -233,8 +222,8 @@ public class BatteryWorker {
         }
     }
 
-    private static void handleOverheat(Context context) {
-        if (timerEnabled && !isOngoing) startTimer();
+    private static void handleOverheat(Context context, long now) {
+        if (timerEnabled) cooldown.startIfIdle(now, (long) cdSeconds * 1000);
 
         if (pauseMode && !BatteryService.isBypassed()) {
             setBypass(context, 1);
@@ -265,13 +254,15 @@ public class BatteryWorker {
             return;
         }
 
-        if (shouldStartFastCharge()) {
+        long now = SystemClock.elapsedRealtime();
+
+        if (shouldStartFastCharge(now)) {
             resumeFastCharge(context);
             return;
         }
 
         if (BatteryReceiver.mTemp >= thresholdTemp) {
-            handleOverheat(context);
+            handleOverheat(context, now);
         }
     }
 
