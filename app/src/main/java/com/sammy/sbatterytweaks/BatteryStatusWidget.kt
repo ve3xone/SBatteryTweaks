@@ -149,7 +149,7 @@ private fun getBatteryStatus(context: Context): WidgetStatus {
     val isCharging = prefs.getBoolean("charging", false)
 
     return when {
-        isBypassed -> WidgetStatus(
+        isBypassed || prefs.getBoolean("not_charging", false) -> WidgetStatus(
             key = "idle",
             labelRes = R.string.idle,
             backgroundRes = R.drawable.widget_bg_idle,

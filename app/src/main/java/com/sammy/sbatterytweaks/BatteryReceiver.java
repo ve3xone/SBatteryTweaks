@@ -121,6 +121,7 @@ public class BatteryReceiver extends BroadcastReceiver {
         prefs.edit()
                 .putInt("battery_level", level)
                 .putBoolean("charging", charging)
+                .putBoolean("not_charging", notCharging())
                 .putBoolean("idle", idle)
                 .commit();
     }

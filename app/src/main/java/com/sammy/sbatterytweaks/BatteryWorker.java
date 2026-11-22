@@ -269,7 +269,7 @@ public class BatteryWorker {
     public static void updateStats(Context context, Boolean isCharging) {
         battTemp = BatteryReceiver.mTemp + "°C";
 
-        if (BatteryService.isBypassed())
+        if (BatteryService.isBypassed() || BatteryReceiver.notCharging())
             chargingState = context.getString(R.string.idle);
         else if (isCharging) {
             chargingState = context.getString(

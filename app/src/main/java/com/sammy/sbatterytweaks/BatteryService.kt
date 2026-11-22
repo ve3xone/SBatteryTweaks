@@ -194,9 +194,10 @@ class BatteryService : Service() {
 
         @JvmStatic
         fun isBypassed(): Boolean {
-            return BatteryReceiver.notCharging() || (BatteryReceiver.isCharging() &&
-                    BatteryWorker.pausePdSupported &&
-                    BatteryWorker.pausePdEnabled)
+            if (BatteryWorker.pausePdSupported) {
+                return BatteryReceiver.isCharging() && BatteryWorker.pausePdEnabled
+            }
+            return BatteryReceiver.notCharging()
         }
 
         @Volatile
@@ -313,7 +314,7 @@ class BatteryService : Service() {
 
             if (BatteryReceiver.drainMonitorEnabled) {
                 if (BatteryReceiver.isCharging()) {
-                    if (!isBypassed()) {
+                    if (!isBypassed() && !BatteryReceiver.notCharging()) {
                         val rate = DrainMonitor.getChargingRate()
                         if (rate > 0f) {
                             val base = context.getString(R.string.charging_rate, rate)
